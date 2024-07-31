@@ -28,11 +28,12 @@ type Chain interface {
 
 // Call is the standard function used for executing chains.
 func Call(ctx context.Context, c Chain, inputValues map[string]any, options ...ChainCallOption) (map[string]any, error) { // nolint: lll
+	// funValues stores the fully input text of list  that ready to prompt for LLMs.
 	fullValues := make(map[string]any, 0)
 	for key, value := range inputValues {
 		fullValues[key] = value
 	}
-
+	// history assisstant's stored input list such as conversation's list,the key is 'history'.
 	newValues, err := c.GetMemory().LoadMemoryVariables(ctx, inputValues)
 	if err != nil {
 		return nil, err
@@ -42,6 +43,7 @@ func Call(ctx context.Context, c Chain, inputValues map[string]any, options ...C
 		fullValues[key] = value
 	}
 
+	// Returned Hook Function...
 	callbacksHandler := getChainCallbackHandler(c)
 	if callbacksHandler != nil {
 		callbacksHandler.HandleChainStart(ctx, inputValues)
@@ -89,6 +91,7 @@ func callChain(
 
 // Run can be used to execute a chain if the chain only expects one input and
 // one string output.
+// Single Input And Single Output
 func Run(ctx context.Context, c Chain, input any, options ...ChainCallOption) (string, error) {
 	inputKeys := c.GetInputKeys()
 	memoryKeys := c.GetMemory().MemoryVariables(ctx)
@@ -132,6 +135,7 @@ func Run(ctx context.Context, c Chain, input any, options ...ChainCallOption) (s
 }
 
 // Predict can be used to execute a chain if the chain only expects one string output.
+// Multiply Input Text And Single One Output
 func Predict(ctx context.Context, c Chain, inputValues map[string]any, options ...ChainCallOption) (string, error) {
 	outputValues, err := Call(ctx, c, inputValues, options...)
 	if err != nil {
@@ -165,6 +169,7 @@ type applyResult struct {
 }
 
 // Apply executes the chain for each of the inputs asynchronously.
+// Many Input To Many Output,To Get Result Asynchronously
 func Apply(ctx context.Context, c Chain, inputValues []map[string]any, maxWorkers int, options ...ChainCallOption) ([]map[string]any, error) { // nolint:lll
 	if maxWorkers <= 0 {
 		maxWorkers = _defaultApplyMaxNumberWorkers
@@ -236,6 +241,7 @@ func getApplyResults(ctx context.Context, resultsChan chan applyResult, inputVal
 
 func validateInputs(c Chain, inputValues map[string]any) error {
 	for _, k := range c.GetInputKeys() {
+		// Get The Map Entry Pair (key,value) And Check The Value
 		if _, ok := inputValues[k]; !ok {
 			return fmt.Errorf("%w: %w: %v", ErrInvalidInputValues, ErrMissingInputValues, k)
 		}
